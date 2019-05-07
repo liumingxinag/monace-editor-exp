@@ -1,4 +1,4 @@
-import json, asyncio, websockets, datetime
+import os, json, asyncio, websockets, datetime, multiprocessing
 
 # JSON格式的协议：
 # 设置主题
@@ -112,10 +112,23 @@ class websocketsvr(object):
             return       
         f.write(txt)
         f.close()
+    
+# websocket进程
+def run_websktsvr():
+    websvr = websocketsvr()
+    websvr.start("localhost", 8765)
 
 
-# websvr = websocketsvr()
-# websvr.start("localhost", 8765)
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+# webserver进程, 设置工程所在目录为当前目录，因为webserver使用当前目录对外服务
+def run_websvr():
+    workdir = os.path.dirname(os.path.realpath(__file__)) + "\python_editor"
+    print("workdir: ", workdir)
+    os.chdir(workdir) 
+    server = HTTPServer(('localhost', 8000), SimpleHTTPRequestHandler)
+    print("Starting server, listen at: %s:%s" % ('localhost', 8000))
+    server.serve_forever()
+
 
 # 打开浏览器
 import wx, wx.html2, winreg
@@ -138,9 +151,18 @@ class web_fream(wx.Frame):
         winreg.CloseKey(self.key)
         evt.Skip()
 
-app = wx.App() 
-frame = web_fream(None, "editor")
-# frame.browser.LoadURL("https://microsoft.github.io/monaco-editor/") 
-frame.browser.LoadURL("file:///F:/Work/py/python%20editor/editor.html") 
-frame.Show() 
-app.MainLoop()
+
+if __name__ == '__main__':
+    p_websktsvr = multiprocessing.Process(target=run_websktsvr)
+    p_websktsvr.start()
+    
+    p_websvr = multiprocessing.Process(target=run_websvr)
+    p_websvr.start()
+
+
+    app = wx.App() 
+    frame = web_fream(None, "editor")
+    # frame.browser.LoadURL("https://microsoft.github.io/monaco-editor/") 
+    frame.browser.LoadURL("http://localhost:8000")
+    frame.Show() 
+    app.MainLoop()
