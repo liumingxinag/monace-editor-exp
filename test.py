@@ -163,6 +163,6 @@ if __name__ == '__main__':
     app = wx.App() 
     frame = web_fream(None, "editor")
     # frame.browser.LoadURL("https://microsoft.github.io/monaco-editor/") 
-    frame.browser.LoadURL("http://localhost:8000")
+    frame.browser.LoadURL("http://localhost:8000/editor.html")
     frame.Show() 
     app.MainLoop()
