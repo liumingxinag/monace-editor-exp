@@ -66,7 +66,7 @@ function editor_layout()
 }
 
 //设置主题风格 theme:vs-dark vs hc-black, fontsize:S M L XL XXL
-function set_theme(theme, fontsize = 'S') 
+function set_theme(theme, fontsize) 
 {
     monaco.editor.setTheme(theme); 
 
