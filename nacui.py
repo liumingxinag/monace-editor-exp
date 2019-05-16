@@ -6,6 +6,7 @@ import time
 
 connectionlist = {} # 存放链接客户fd,元组
 g_code_length = 0
+
 g_header_length = 0 # websocket数据头部长度
 PRINT_FLAG = True
 

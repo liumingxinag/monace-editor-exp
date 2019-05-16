@@ -6,11 +6,12 @@
 //
 // JSON格式的协议：
 // 设置主题
-// {"cmd":"settheme", "theme":"", "fontsize":12}
+// {"cmd":"settheme", theme":"", "fontsize":12}
 // 打开文件
 // {"cmd":"openfile", "file":"", "txt":""}
 // 保存文件
-// {"cmd":"savefile", "file":"", "txt":""}
+// {"cmd":"savefile_req", "reqid":0, "file":""}
+// {"cmd":"savefile_rsp", "reqid":0, "file":"", "txt":"", "errtxt":""}
 //////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////
@@ -47,7 +48,7 @@ function init_editor(layoutid, code_str)
                 //wrappingIndent: "indent", 
                 value: code_str,                //初始文本内容
                 automaticLayout: true,          //随布局Element自动调整大小                        
-                minimap: {enabled: false},      //代码略缩图
+                //minimap: {enabled: false},      //代码略缩图
             }
         );
     });
@@ -84,12 +85,17 @@ function load_file(file, txt)
     g_editor.setValue(txt);
 }
 //保存代码到本地文件, 第一行为文件名, 文件名如果为空在在python端弹出保存对话框
-function save_file()
+function save_file(reqid, file)
 {
+    fname = file;
+    if (fname == "")
+        fname = g_filename;
     data = {
-        'cmd':'savefile',
-        'file':g_filename,
-        'txt':g_editor.getValue()
+        'cmd':'savefile_rsp',
+        'reqid':reqid,
+        'file':fname,
+        'txt':g_editor.getValue(),
+        'errtxt':''
     }
     senddata(data);
 }
@@ -134,7 +140,9 @@ function init_webskt()
         if (data.cmd == 'openfile')
             load_file(data.file, data.txt);
         else if (data.cmd == 'settheme')
-            set_theme(data.theme, data.fontname, data.fontsize)
+            set_theme(data.theme, data.fontname, data.fontsize);
+        else if (data.cmd == 'savefile_req')
+             save_file(data.reqid, data.file);
     };
 }
 
@@ -143,6 +151,6 @@ function init_webskt()
 function senddata(data) {
     init_webskt();
     json_str = JSON.stringify(data);
-    //alert(json_str);
+    alert(json_str);
     ws.send(json_str);
 }
