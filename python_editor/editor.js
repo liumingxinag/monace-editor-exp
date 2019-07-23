@@ -43,12 +43,22 @@ function init_editor(layoutid, code_str)
             document.getElementById(layoutid), 
             {
                 language: 'python',             //程序语言
-                theme: 'vs-dark',
-                //wordWrap: "on",               //自动换行，注意大小写
-                //wrappingIndent: "indent", 
+                theme: 'vs-dark',               //界面主题
                 value: code_str,                //初始文本内容
                 automaticLayout: true,          //随布局Element自动调整大小                        
-                //minimap: {enabled: false},      //代码略缩图
+                minimap: {enabled: true},       //代码略缩图
+                fontSize: 18,                   //字体大小
+                //wordWrap: "on",               //自动换行，注意大小写
+                //wrappingIndent: "indent",     //自动缩进
+                //glyphMargin: true,            //字形边缘
+                //useTabStops: false,           //tab键停留
+                //selectOnLineNumbers: true,    //单击行号选中该行
+                //roundedSelection: false,      //
+                //readOnly: false,              // 只读
+                //cursorStyle: 'line',          //光标样式
+                //automaticLayout: false,       //自动布局
+                //autoIndent:true,              //自动布局
+                //quickSuggestionsDelay: 500,   //代码提示延时
             }
         );
     });
@@ -97,7 +107,85 @@ function save_file(reqid, file)
         'txt':g_editor.getValue(),
         'errtxt':''
     }
-    senddata(data);
+    senddata(data);  
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+///标签栏管理
+//////////////////////////////////////////////////////////////////////////////
+// == 值比较  === 类型比较 $(id) ---->  document.getElementById(id)
+function $(id){
+    return typeof id === 'string' ? document.getElementById(id):id;
+}
+ 
+//全局字典
+var datas = new Array();
+
+// 当前标签
+var currtab = ""
+
+// 切换标签
+function switch_tab(newtab){   
+    if (newtab == currtab)
+        return;
+
+    var tab = $(newtab.toString());
+    if (!tab && newtab != "")
+        return;
+    
+    if (tab)
+        tab.className = 'current';
+    load_file(newtab, tab ? datas[newtab] : '');
+
+    tab = $(currtab.toString())
+    if (tab)
+        tab.className = '';
+
+    currtab = newtab;
+}
+
+// 添加标签
+function add_tab(name, value){
+    if (name == "" || datas[name])
+        return;
+
+    //新建标签
+    var tab = document.createElement("li");
+    tab.id = name;
+    tab.innerHTML = name.substr(name.lastIndexOf('/')+1);
+
+    //新建关闭按钮
+    var btn = document.createElement("a");
+    btn.href = "#";
+    btn.innerHTML = "x";
+
+    //添加按钮到标签上
+    tab.appendChild(btn);
+    //添加按钮到标签栏上
+    $('tabs').appendChild(tab);
+
+    //设置标签和按钮的单击事件
+    tab.onclick = function(){
+        switch_tab(this.id);
+    }
+    btn.onclick = function(){
+        var tab = this.parentNode;
+        if (tab.className == 'current')
+        {
+            var _tab = tab.nextElementSibling;
+            if (!_tab)
+                _tab = tab.previousElementSibling;
+            switch_tab(_tab ? _tab.id : '');
+        }
+        delete datas[tab.id];
+        tab.remove();
+    }
+
+    //添加标签关联的数据
+    datas[name] = value;
+    //切换到新标签
+    switch_tab(name);
 }
 
 
@@ -138,19 +226,19 @@ function init_webskt()
         //alert(evt.data);
         data = JSON.parse(evt.data);
         if (data.cmd == 'openfile')
-            load_file(data.file, data.txt);
+            add_tab(data.file, data.txt);
         else if (data.cmd == 'settheme')
             set_theme(data.theme, data.fontname, data.fontsize);
         else if (data.cmd == 'savefile_req')
-             save_file(data.reqid, data.file);
+            save_file(data.reqid, data.file);
     };
 }
 
 
 //发送文本到websocket服务端
 function senddata(data) {
-    init_webskt();
+    //init_webskt();
     json_str = JSON.stringify(data);
-    alert(json_str);
-    ws.send(json_str);
+    ws.send(json_str);  
+    //alert(json_str);
 }

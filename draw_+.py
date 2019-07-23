@@ -27,5 +27,7 @@ forward(60)
 left(100) 
 forward(100) 
 right(100)
-input("enter:")
 
+
+hideturtle() 
+input("enter:")
