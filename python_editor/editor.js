@@ -21,6 +21,7 @@
 //当前代码编辑器所打开的文件，为空则为新建文件
 var g_model = null;
 var g_filename = "";
+var g_modify = false;
 //编辑器实例
 var g_editor = null;
 
@@ -59,9 +60,18 @@ function init_editor(layoutid, code_str)
                 //automaticLayout: false,       //自动布局
                 //autoIndent:true,              //自动布局
                 //quickSuggestionsDelay: 500,   //代码提示延时
+                contextmenu: false,
             }
-        );
+        );        
+        g_editor.onDidChangeModelContent((v) => {
+            if (!g_modify)
+                on_modify(0, g_filename)
+            g_modify = true;
+        });
+
     });
+
+
 
     //自适应大小，可以不要
     window.onresize = editor_layout;
@@ -92,6 +102,7 @@ function set_theme(theme, fontsize)
 function load_file(file, txt)
 {
     g_filename = file;
+    g_modify = false;
     g_editor.setValue(txt);
 }
 //保存代码到本地文件, 第一行为文件名, 文件名如果为空在在python端弹出保存对话框
@@ -109,7 +120,19 @@ function save_file(reqid, file)
     }
     senddata(data);  
 }
-
+//文件被修改
+function on_modify(reqid, file)
+{
+    fname = file;
+    if (fname == "")
+        fname = g_filename;
+    data = {
+        'cmd':'modify_rsp',
+        'reqid':reqid,
+        'file':fname
+    }
+    senddata(data);  
+}
 
 //////////////////////////////////////////////////////////////////////////////
 ///标签栏管理

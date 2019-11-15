@@ -1922,6 +1922,7 @@ define('vs/language/html/languageFeatures',["require", "exports", "vscode-langua
                     detail: '',
                     containerName: item.containerName,
                     kind: toSymbolKind(item.kind),
+                    tags: [],
                     range: toRange(item.location.range),
                     selectionRange: toRange(item.location.range)
                 }); });
@@ -1940,10 +1941,12 @@ define('vs/language/html/languageFeatures',["require", "exports", "vscode-langua
                 if (!items) {
                     return;
                 }
-                return items.map(function (item) { return ({
-                    range: toRange(item.range),
-                    url: item.target
-                }); });
+                return {
+                    links: items.map(function (item) { return ({
+                        range: toRange(item.range),
+                        url: item.target
+                    }); })
+                };
             });
         };
         return DocumentLinkAdapter;

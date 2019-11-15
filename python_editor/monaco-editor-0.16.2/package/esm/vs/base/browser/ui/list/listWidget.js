@@ -34,9 +34,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 import './list.css';
 import { localize } from '../../../../nls.js';
-import { dispose } from '../../../common/lifecycle.js';
+import { dispose, DisposableStore } from '../../../common/lifecycle.js';
 import { isNumber } from '../../../common/types.js';
-import { range, firstIndex } from '../../../common/arrays.js';
+import { range, firstIndex, binarySearch } from '../../../common/arrays.js';
 import { memoize } from '../../../common/decorators.js';
 import * as DOM from '../../dom.js';
 import * as platform from '../../../common/platform.js';
@@ -115,14 +115,11 @@ var TraitRenderer = /** @class */ (function () {
 var Trait = /** @class */ (function () {
     function Trait(_trait) {
         this._trait = _trait;
-        this._onChange = new Emitter();
         this.indexes = [];
+        this.sortedIndexes = [];
+        this._onChange = new Emitter();
+        this.onChange = this._onChange.event;
     }
-    Object.defineProperty(Trait.prototype, "onChange", {
-        get: function () { return this._onChange.event; },
-        enumerable: true,
-        configurable: true
-    });
     Object.defineProperty(Trait.prototype, "trait", {
         get: function () { return this._trait; },
         enumerable: true,
@@ -138,9 +135,9 @@ var Trait = /** @class */ (function () {
     Trait.prototype.splice = function (start, deleteCount, elements) {
         var diff = elements.length - deleteCount;
         var end = start + deleteCount;
-        var indexes = this.indexes.filter(function (i) { return i < start; }).concat(elements.map(function (hasTrait, i) { return hasTrait ? i + start : -1; }).filter(function (i) { return i !== -1; }), this.indexes.filter(function (i) { return i >= end; }).map(function (i) { return i + diff; }));
+        var indexes = this.sortedIndexes.filter(function (i) { return i < start; }).concat(elements.map(function (hasTrait, i) { return hasTrait ? i + start : -1; }).filter(function (i) { return i !== -1; }), this.sortedIndexes.filter(function (i) { return i >= end; }).map(function (i) { return i + diff; }));
         this.renderer.splice(start, deleteCount, elements.length);
-        this.set(indexes);
+        this._set(indexes, indexes);
     };
     Trait.prototype.renderIndex = function (index, container) {
         DOM.toggleClass(container, this._trait, this.contains(index));
@@ -155,9 +152,14 @@ var Trait = /** @class */ (function () {
      * @return The old indexes which had this trait.
      */
     Trait.prototype.set = function (indexes, browserEvent) {
+        return this._set(indexes, indexes.slice().sort(numericSort), browserEvent);
+    };
+    Trait.prototype._set = function (indexes, sortedIndexes, browserEvent) {
         var result = this.indexes;
+        var sortedResult = this.sortedIndexes;
         this.indexes = indexes;
-        var toRender = disjunction(result, indexes);
+        this.sortedIndexes = sortedIndexes;
+        var toRender = disjunction(sortedResult, indexes);
         this.renderer.renderIndexes(toRender);
         this._onChange.fire({ indexes: indexes, browserEvent: browserEvent });
         return result;
@@ -166,7 +168,7 @@ var Trait = /** @class */ (function () {
         return this.indexes;
     };
     Trait.prototype.contains = function (index) {
-        return this.indexes.some(function (i) { return i === index; });
+        return binarySearch(this.sortedIndexes, index, numericSort) >= 0;
     };
     Trait.prototype.dispose = function () {
         this._onChange = dispose(this._onChange);
@@ -221,8 +223,8 @@ var KeyboardController = /** @class */ (function () {
     function KeyboardController(list, view, options) {
         this.list = list;
         this.view = view;
-        var multipleSelectionSupport = !(options.multipleSelectionSupport === false);
-        this.disposables = [];
+        this.disposables = new DisposableStore();
+        var multipleSelectionSupport = options.multipleSelectionSupport !== false;
         this.openController = options.openController || DefaultOpenController;
         var onKeyDown = Event.chain(domEvent(view.domNode, 'keydown'))
             .filter(function (e) { return !isInputElement(e.target); })
@@ -286,7 +288,7 @@ var KeyboardController = /** @class */ (function () {
         this.view.domNode.focus();
     };
     KeyboardController.prototype.dispose = function () {
-        this.disposables = dispose(this.disposables);
+        this.disposables.dispose();
     };
     return KeyboardController;
 }());
@@ -301,6 +303,7 @@ export function mightProducePrintableCharacter(event) {
     }
     return (event.keyCode >= 31 /* KEY_A */ && event.keyCode <= 56 /* KEY_Z */)
         || (event.keyCode >= 21 /* KEY_0 */ && event.keyCode <= 30 /* KEY_9 */)
+        || (event.keyCode >= 93 /* NUMPAD_0 */ && event.keyCode <= 102 /* NUMPAD_9 */)
         || (event.keyCode >= 80 /* US_SEMICOLON */ && event.keyCode <= 90 /* US_QUOTE */);
 }
 var TypeLabelController = /** @class */ (function () {
@@ -312,8 +315,8 @@ var TypeLabelController = /** @class */ (function () {
         this.state = TypeLabelControllerState.Idle;
         this.automaticKeyboardNavigation = true;
         this.triggered = false;
-        this.enabledDisposables = [];
-        this.disposables = [];
+        this.enabledDisposables = new DisposableStore();
+        this.disposables = new DisposableStore();
         this.updateOptions(list.options);
     }
     TypeLabelController.prototype.updateOptions = function (options) {
@@ -351,7 +354,7 @@ var TypeLabelController = /** @class */ (function () {
         if (!this.enabled) {
             return;
         }
-        this.enabledDisposables = dispose(this.enabledDisposables);
+        this.enabledDisposables.clear();
         this.enabled = false;
         this.triggered = false;
     };
@@ -378,7 +381,8 @@ var TypeLabelController = /** @class */ (function () {
     };
     TypeLabelController.prototype.dispose = function () {
         this.disable();
-        this.disposables = dispose(this.disposables);
+        this.enabledDisposables.dispose();
+        this.disposables.dispose();
     };
     return TypeLabelController;
 }());
@@ -386,8 +390,7 @@ var DOMFocusController = /** @class */ (function () {
     function DOMFocusController(list, view) {
         this.list = list;
         this.view = view;
-        this.disposables = [];
-        this.disposables = [];
+        this.disposables = new DisposableStore();
         var onKeyDown = Event.chain(domEvent(view.domNode, 'keydown'))
             .filter(function (e) { return !isInputElement(e.target); })
             .map(function (e) { return new StandardKeyboardEvent(e); });
@@ -419,7 +422,7 @@ var DOMFocusController = /** @class */ (function () {
         tabIndexElement.focus();
     };
     DOMFocusController.prototype.dispose = function () {
-        this.disposables = dispose(this.disposables);
+        this.disposables.dispose();
     };
     return DOMFocusController;
 }());
@@ -432,7 +435,7 @@ export function isSelectionRangeChangeEvent(event) {
 function isMouseRightClick(event) {
     return event instanceof MouseEvent && event.button === 2;
 }
-var DefaultMultipleSelectionContoller = {
+var DefaultMultipleSelectionController = {
     isSelectionSingleChangeEvent: isSelectionSingleChangeEvent,
     isSelectionRangeChangeEvent: isSelectionRangeChangeEvent
 };
@@ -447,10 +450,10 @@ var DefaultOpenController = {
 var MouseController = /** @class */ (function () {
     function MouseController(list) {
         this.list = list;
-        this.disposables = [];
+        this.disposables = new DisposableStore();
         this.multipleSelectionSupport = !(list.options.multipleSelectionSupport === false);
         if (this.multipleSelectionSupport) {
-            this.multipleSelectionController = list.options.multipleSelectionController || DefaultMultipleSelectionContoller;
+            this.multipleSelectionController = list.options.multipleSelectionController || DefaultMultipleSelectionController;
         }
         this.openController = list.options.openController || DefaultOpenController;
         this.mouseSupport = typeof list.options.mouseSupport === 'undefined' || !!list.options.mouseSupport;
@@ -547,6 +550,7 @@ var MouseController = /** @class */ (function () {
         else if (this.isSelectionSingleChangeEvent(e)) {
             var selection = this.list.getSelection();
             var newSelection = selection.filter(function (i) { return i !== focus; });
+            this.list.setFocus([focus]);
             if (selection.length === newSelection.length) {
                 this.list.setSelection(newSelection.concat([focus]), e.browserEvent);
             }
@@ -556,7 +560,7 @@ var MouseController = /** @class */ (function () {
         }
     };
     MouseController.prototype.dispose = function () {
-        this.disposables = dispose(this.disposables);
+        this.disposables.dispose();
     };
     return MouseController;
 }());
@@ -649,7 +653,8 @@ var defaultStyles = {
     listFocusAndSelectionForeground: Color.fromHex('#FFFFFF'),
     listInactiveSelectionBackground: Color.fromHex('#3F3F46'),
     listHoverBackground: Color.fromHex('#2A2D2E'),
-    listDropBackground: Color.fromHex('#383B3D')
+    listDropBackground: Color.fromHex('#383B3D'),
+    treeIndentGuidesStroke: Color.fromHex('#a9a9a9')
 };
 var DefaultOptions = {
     keyboardSupport: true,
@@ -683,7 +688,7 @@ function getContiguousRangeContaining(range, value) {
 }
 /**
  * Given two sorted collections of numbers, returns the intersection
- * betweem them (OR).
+ * between them (OR).
  */
 function disjunction(one, other) {
     var result = [];
@@ -754,19 +759,19 @@ var PipelineRenderer = /** @class */ (function () {
     PipelineRenderer.prototype.renderTemplate = function (container) {
         return this.renderers.map(function (r) { return r.renderTemplate(container); });
     };
-    PipelineRenderer.prototype.renderElement = function (element, index, templateData, dynamicHeightProbing) {
+    PipelineRenderer.prototype.renderElement = function (element, index, templateData, height) {
         var i = 0;
         for (var _i = 0, _a = this.renderers; _i < _a.length; _i++) {
             var renderer = _a[_i];
-            renderer.renderElement(element, index, templateData[i++], dynamicHeightProbing);
+            renderer.renderElement(element, index, templateData[i++], height);
         }
     };
-    PipelineRenderer.prototype.disposeElement = function (element, index, templateData, dynamicHeightProbing) {
+    PipelineRenderer.prototype.disposeElement = function (element, index, templateData, height) {
         var i = 0;
         for (var _i = 0, _a = this.renderers; _i < _a.length; _i++) {
             var renderer = _a[_i];
             if (renderer.disposeElement) {
-                renderer.disposeElement(element, index, templateData[i], dynamicHeightProbing);
+                renderer.disposeElement(element, index, templateData[i], height);
             }
             i += 1;
         }
@@ -846,10 +851,13 @@ var List = /** @class */ (function () {
         if (_options === void 0) { _options = DefaultOptions; }
         this._options = _options;
         this.eventBufferer = new EventBufferer();
+        this.disposables = new DisposableStore();
         this._onDidOpen = new Emitter();
+        this.onDidOpen = this._onDidOpen.event;
         this._onPin = new Emitter();
         this.didJustPressContextMenuKey = false;
         this._onDidDispose = new Emitter();
+        this.onDidDispose = this._onDidDispose.event;
         this.focus = new FocusTrait();
         this.selection = new Trait('selected');
         mixin(_options, defaultStyles, false);
@@ -873,19 +881,22 @@ var List = /** @class */ (function () {
             new TraitSpliceable(this.selection, this.view, _options.identityProvider),
             this.view
         ]);
-        this.disposables = [this.focus, this.selection, this.view, this._onDidDispose];
+        this.disposables.add(this.focus);
+        this.disposables.add(this.selection);
+        this.disposables.add(this.view);
+        this.disposables.add(this._onDidDispose);
         this.onDidFocus = Event.map(domEvent(this.view.domNode, 'focus', true), function () { return null; });
         this.onDidBlur = Event.map(domEvent(this.view.domNode, 'blur', true), function () { return null; });
-        this.disposables.push(new DOMFocusController(this, this.view));
+        this.disposables.add(new DOMFocusController(this, this.view));
         if (typeof _options.keyboardSupport !== 'boolean' || _options.keyboardSupport) {
             var controller = new KeyboardController(this, this.view, _options);
-            this.disposables.push(controller);
+            this.disposables.add(controller);
         }
         if (_options.keyboardNavigationLabelProvider) {
             this.typeLabelController = new TypeLabelController(this, this.view, _options.keyboardNavigationLabelProvider);
-            this.disposables.push(this.typeLabelController);
+            this.disposables.add(this.typeLabelController);
         }
-        this.disposables.push(this.createMouseController(_options));
+        this.disposables.add(this.createMouseController(_options));
         this.onFocusChange(this._onFocusChange, this, this.disposables);
         this.onSelectionChange(this._onSelectionChange, this, this.disposables);
         if (_options.ariaLabel) {
@@ -906,6 +917,11 @@ var List = /** @class */ (function () {
             var _this = this;
             return Event.map(this.eventBufferer.wrapEvent(this.selection.onChange), function (e) { return _this.toListEvent(e); });
         },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(List.prototype, "domId", {
+        get: function () { return this.view.domId; },
         enumerable: true,
         configurable: true
     });
@@ -946,12 +962,6 @@ var List = /** @class */ (function () {
                 .map(function (e) { return new StandardKeyboardEvent(e); })
                 .filter(function (e) { return _this.didJustPressContextMenuKey = e.keyCode === 58 /* ContextMenu */ || (e.shiftKey && e.keyCode === 68 /* F10 */); })
                 .filter(function (e) { e.preventDefault(); e.stopPropagation(); return false; })
-                .map(function (event) {
-                var index = _this.getFocus()[0];
-                var element = _this.view.element(index);
-                var anchor = _this.view.domElement(index) || undefined;
-                return { index: index, element: element, anchor: anchor, browserEvent: event.browserEvent };
-            })
                 .event;
             var fromKeyup = Event.chain(domEvent(this.view.domNode, 'keyup'))
                 .filter(function () {
@@ -959,16 +969,12 @@ var List = /** @class */ (function () {
                 _this.didJustPressContextMenuKey = false;
                 return didJustPressContextMenuKey;
             })
-                .filter(function () { return _this.getFocus().length > 0; })
+                .filter(function () { return _this.getFocus().length > 0 && !!_this.view.domElement(_this.getFocus()[0]); })
                 .map(function (browserEvent) {
                 var index = _this.getFocus()[0];
                 var element = _this.view.element(index);
-                var anchor = _this.view.domElement(index) || undefined;
+                var anchor = _this.view.domElement(index);
                 return { index: index, element: element, anchor: anchor, browserEvent: browserEvent };
-            })
-                .filter(function (_a) {
-                var anchor = _a.anchor;
-                return !!anchor;
             })
                 .event;
             var fromMouse = Event.chain(this.view.onContextMenu)
@@ -985,11 +991,6 @@ var List = /** @class */ (function () {
     });
     Object.defineProperty(List.prototype, "onKeyDown", {
         get: function () { return domEvent(this.view.domNode, 'keydown'); },
-        enumerable: true,
-        configurable: true
-    });
-    Object.defineProperty(List.prototype, "onDidDispose", {
-        get: function () { return this._onDidDispose.event; },
         enumerable: true,
         configurable: true
     });
@@ -1067,7 +1068,6 @@ var List = /** @class */ (function () {
                 throw new Error("Invalid index " + index);
             }
         }
-        indexes = indexes.sort(numericSort);
         this.selection.set(indexes, browserEvent);
     };
     List.prototype.getSelection = function () {
@@ -1084,7 +1084,6 @@ var List = /** @class */ (function () {
                 throw new Error("Invalid index " + index);
             }
         }
-        indexes = indexes.sort(numericSort);
         this.focus.set(indexes, browserEvent);
     };
     List.prototype.focusNext = function (n, loop, browserEvent, filter) {
@@ -1308,7 +1307,7 @@ var List = /** @class */ (function () {
     };
     List.prototype.dispose = function () {
         this._onDidDispose.fire();
-        this.disposables = dispose(this.disposables);
+        this.disposables.dispose();
         this._onDidOpen.dispose();
         this._onPin.dispose();
         this._onDidDispose.dispose();

@@ -20,7 +20,7 @@ var PagedRenderer = /** @class */ (function () {
         var data = this.renderer.renderTemplate(container);
         return { data: data, disposable: { dispose: function () { } } };
     };
-    PagedRenderer.prototype.renderElement = function (index, _, data, dynamicHeightProbing) {
+    PagedRenderer.prototype.renderElement = function (index, _, data, height) {
         var _this = this;
         if (data.disposable) {
             data.disposable.dispose();
@@ -30,13 +30,13 @@ var PagedRenderer = /** @class */ (function () {
         }
         var model = this.modelProvider();
         if (model.isResolved(index)) {
-            return this.renderer.renderElement(model.get(index), index, data.data, dynamicHeightProbing);
+            return this.renderer.renderElement(model.get(index), index, data.data, height);
         }
         var cts = new CancellationTokenSource();
         var promise = model.resolve(index, cts.token);
         data.disposable = { dispose: function () { return cts.cancel(); } };
         this.renderer.renderPlaceholder(index, data.data);
-        promise.then(function (entry) { return _this.renderer.renderElement(entry, index, data.data, dynamicHeightProbing); });
+        promise.then(function (entry) { return _this.renderer.renderElement(entry, index, data.data, height); });
     };
     PagedRenderer.prototype.disposeTemplate = function (data) {
         if (data.disposable) {
@@ -52,8 +52,8 @@ var PagedRenderer = /** @class */ (function () {
 }());
 var PagedList = /** @class */ (function () {
     function PagedList(container, virtualDelegate, renderers, options) {
-        if (options === void 0) { options = {}; }
         var _this = this;
+        if (options === void 0) { options = {}; }
         var pagedRenderers = renderers.map(function (r) { return new PagedRenderer(r, function () { return _this.model; }); });
         this.list = new List(container, virtualDelegate, pagedRenderers, options);
     }

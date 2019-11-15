@@ -24,6 +24,7 @@ var IndexTreeModel = /** @class */ (function () {
     function IndexTreeModel(list, rootElement, options) {
         if (options === void 0) { options = {}; }
         this.list = list;
+        this.rootRef = [];
         this.eventBufferer = new EventBufferer();
         this._onDidChangeCollapseState = new Emitter();
         this.onDidChangeCollapseState = this.eventBufferer.wrapEvent(this._onDidChangeCollapseState.event);
@@ -49,8 +50,8 @@ var IndexTreeModel = /** @class */ (function () {
         };
     }
     IndexTreeModel.prototype.splice = function (location, deleteCount, toInsert, onDidCreateNode, onDidDeleteNode) {
-        var _this = this;
         var _a;
+        var _this = this;
         if (location.length === 0) {
             throw new Error('Invalid tree location');
         }
@@ -144,7 +145,7 @@ var IndexTreeModel = /** @class */ (function () {
     IndexTreeModel.prototype._setCollapsed = function (location, collapsed, recursive) {
         var _a = this.getTreeNodeWithListIndex(location), node = _a.node, listIndex = _a.listIndex, revealed = _a.revealed;
         var result = this._setListNodeCollapsed(node, listIndex, revealed, collapsed, recursive || false);
-        if (this.autoExpandSingleChildren && !collapsed && !recursive) {
+        if (node !== this.root && this.autoExpandSingleChildren && !collapsed && !recursive) {
             var onlyVisibleChildIndex = -1;
             for (var i = 0; i < node.children.length; i++) {
                 var child = node.children[i];
