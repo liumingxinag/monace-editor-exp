@@ -10,12 +10,53 @@
 
 <body>
     <!--标签栏-->
-    <ul id="tabs">
-    </ul>
+    <div>
+    
+    
+    <table width="100%" border="1">
+      <tr>
+        <td width="90%">
+            <ul id="tabs">
+                <li>ddd</li>
+                <li>fff</li>
+                <li>iii</li>
+            </ul>
+        </td>
+        <td width="90px">
+            <ul id="toolbar">
+                <li id="prev">&lt</li>
+                <li id="next">&gt</li>
+                <li id="menu">V
+                    <ul id="menulist">
+                        <li id="1">ddd</li>
+                        <li id="2">ddd</li>
+                        <li id="3">ddd</li>
+                        <li id="4">ddd</li>
+                        <li id="5">ddd</li>
+                    </ul>
+                </li>
+            </ul>
+        </td>
+      </tr>
+    </table>
+    </div>
     
     <!--编辑器-->
     <div id="editor">
     </div>
+
+
+
+    <script type="text/javascript">
+        var menu_btn = document.getElementById("menu");
+        menu_btn.onmouseover = function() {
+            this.children[0].style.visibility = 'visible';
+        }
+
+        menu_btn.onmouseout = function() {
+            this.children[0].style.visibility = 'hidden';
+        }
+    </script>
 </body>
 
 </html>

@@ -18,13 +18,23 @@ function switch_tab(newtab){
     if (!tab && newtab != "")
         return;
 
-    if (tab)
+    if (tab){
         tab.className = 'current';
+        var btn = tab.children[0];
+        if (btn)
+            btn.className = 'curr_btn';
+    }
+
     $('editor').innerHTML = tab ? datas[newtab] : '';
 
     tab = $(currtab.toString())
     if (tab)
+    {
         tab.className = '';
+        var btn = tab.children[0];
+        if (btn)
+            btn.className = '';
+    }
 
     currtab = newtab;
 }
@@ -43,6 +53,7 @@ function add_tab(name, value){
     var btn = document.createElement("a");
     btn.href = "#";
     btn.innerHTML = "x";
+    btn.className = 'curr_btn'
 
     //添加按钮到标签上
     tab.appendChild(btn);
@@ -64,6 +75,16 @@ function add_tab(name, value){
         }
         delete datas[tab.id];
         tab.remove();
+    }
+    tab.onmouseover = function(){
+        var btn = this.children[0];
+        if (btn && btn.className != 'curr_btn')
+            btn.className = 'over_btn';
+    }
+    tab.onmouseout = function(){
+        var btn = this.children[0];
+        if (btn && btn.className != 'curr_btn')
+            btn.className = '';
     }
 
     //添加标签关联的数据
@@ -115,7 +136,7 @@ window.onload = function(){
         "驾彼四牡　四牡骙骙　君子所依　小人所腓　四牡翼翼　象弭鱼服　岂不日戒　玁狁孔棘<br/><br/>" +
         "昔我往矣　杨柳依依　今我来思　雨雪霏霏　行道迟迟　载渴载饥　我心伤悲　莫知我哀<br/><br/>");
     
-    add_tab("击鼓其镗　踊跃用兵", "<br/>" +
+    add_tab("击鼓", "<br/>" +
         "击鼓其镗　踊跃用兵　土国城漕　我独南行<br/><br/>" +
         "从孙子仲　平陈与宋　不我以归　忧心有忡<br/><br/>" +
         "爰居爰处　爰丧其马　于以求之　于林之下<br/><br/>" +

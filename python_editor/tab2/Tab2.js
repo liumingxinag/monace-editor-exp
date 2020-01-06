@@ -18,13 +18,23 @@ function switch_tab(newtab){
     if (!tab && newtab != "")
         return;
 
-    if (tab)
+    if (tab){
         tab.className = 'current';
+        var btn = tab.children[0];
+        if (btn)
+            btn.className = 'curr_btn';
+    }
+
     $('editor').innerHTML = tab ? datas[newtab] : '';
 
     tab = $(currtab.toString())
     if (tab)
+    {
         tab.className = '';
+        var btn = tab.children[0];
+        if (btn)
+            btn.className = '';
+    }
 
     currtab = newtab;
 }
@@ -43,6 +53,7 @@ function add_tab(name, value){
     var btn = document.createElement("a");
     btn.href = "#";
     btn.innerHTML = "x";
+    btn.className = 'curr_btn'
 
     //添加按钮到标签上
     tab.appendChild(btn);
@@ -64,6 +75,16 @@ function add_tab(name, value){
         }
         delete datas[tab.id];
         tab.remove();
+    }
+    tab.onmouseover = function(){
+        var btn = this.children[0];
+        if (btn && btn.className != 'curr_btn')
+            btn.className = 'over_btn';
+    }
+    tab.onmouseout = function(){
+        var btn = this.children[0];
+        if (btn && btn.className != 'curr_btn')
+            btn.className = '';
     }
 
     //添加标签关联的数据
