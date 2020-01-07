@@ -109,7 +109,7 @@ function do_size() {
 }
 
 function do_load() { 
-    init_webskt();
+    //init_webskt();
     g_ready = true;
 }
 
@@ -144,48 +144,48 @@ function save_file(file, need_confirm) {
     org_datas[file] = datas[file];
     on_modify(file, false);
     
-    data = {
-        'cmd':'savefile_rsp',
-        'file':file,
-        'txt':datas[file]
-    };
-    senddata(data);
+    // data = {
+    //     'cmd':'savefile_rsp',
+    //     'file':file,
+    //     'txt':datas[file]
+    // };
+    // senddata(data);
 
-    // Bridge.do_save_file(file, datas[file], need_confirm);
+    Bridge.do_save_file(file, datas[file], need_confirm);
 }
 //切换文件
 function switch_file(file){
-    data = {
-        'cmd':'switch_file',
-        'file':file
-    };
-    senddata(data);
+    // data = {
+    //     'cmd':'switch_file',
+    //     'file':file
+    // };
+    // senddata(data);
 
-    // Bridge.on_switch_file(currtab);
+    Bridge.on_switch_file(currtab);
 }
 //文件被修改
 function modify_nty(file, modified) {
     on_modify(file, modified);
     
-    data = {
-        'cmd':'modify_nty',
-        'file':file,
-        'modified': modified
-    };
-    senddata(data);
+    // data = {
+    //     'cmd':'modify_nty',
+    //     'file':file,
+    //     'modified': modified
+    // };
+    // senddata(data);
     
-    // Bridge.on_modify_file(file, modified);
+    Bridge.on_modify_file(file, modified);
 }
 //粘贴
 function do_key_event(){
-    data = {
-        'cmd':'do_key_event',
-        'keys':[17, 86], // Ctrl+V
-        'is_group':true
-    };
-    senddata(data);
+    // data = {
+    //     'cmd':'do_key_event',
+    //     'keys':[17, 86], // Ctrl+V
+    //     'is_group':true
+    // };
+    // senddata(data);
     
-    // Bridge.do_key_event([17, 86], true);
+    Bridge.do_key_event([17, 86], true);
 }
 //文件修改通知
 function on_modify(file, modified) {
@@ -323,31 +323,32 @@ function add_tab(name, value){
 
 
 //////////////////////////////////////////////////////////////////////////////
-///websocket客户端通道
+///Qt客户端通道
 //////////////////////////////////////////////////////////////////////////////
-// new QWebChannel(qt.webChannelTransport,
-//     function (channel) {
-//         window.Bridge = channel.objects.Bridge;
-//
-//         // 绑定自定义的信号customSignal
-//         Bridge.openSignal.connect(function (file, text) {
-//             if (g_ready)
-//                 add_tab(file, text);
-//         });
-//         Bridge.saveSignal.connect(function (file){
-//             save_file(file, false)
-//         });
-//         Bridge.setThemeSignal.connect(function (text) {
-//             set_theme(text, '');
-//             if (text == 'vs-dark'){
-//                 document.getElementById('main_link').href = 'editor.css'
-//             }else {
-//                 document.getElementById('main_link').href = 'editor_vs.css'
-//             }
-//         });
-//     }
-// );
-// 
+new QWebChannel(qt.webChannelTransport,
+    function (channel) {
+        window.Bridge = channel.objects.Bridge;
+
+        // 绑定自定义的信号customSignal
+        Bridge.openSignal.connect(function (file, text) {
+            if (g_ready)
+                add_tab(file, text);
+        });
+        
+        Bridge.saveSignal.connect(function (file){
+            save_file(file, false)
+        });
+
+        Bridge.setThemeSignal.connect(function (text) {
+            set_theme(text, '');
+            if (text == 'vs-dark'){
+                document.getElementById('main_link').href = 'editor.css'
+            }else {
+                document.getElementById('main_link').href = 'editor_vs.css'
+            }
+        });
+    }
+);
 
 
 
@@ -355,58 +356,59 @@ function add_tab(name, value){
 ///websocket客户端
 //////////////////////////////////////////////////////////////////////////////
 ///
-var ws = null;
-//判断浏览器是否内置了websocket
-function init_webskt() {
-    if (ws != null)
-        return;
-    if ('WebSocket' in window)
-        ws = new WebSocket("ws://localhost:8765");
-    else{
-        return;
-    }
+// var ws = null;
+// //判断浏览器是否内置了websocket
+// function init_webskt() {
+//     if (ws != null)
+//         return;
+//     if ('WebSocket' in window)
+//         ws = new WebSocket("ws://localhost:8765");
+//     else{
+//         return;
+//     }
     
-    //连接web socket成功触发
-    ws.onopen = function (evt){
-    }
-    //断开web socket成功触发
-    ws.onclose = function (evt){
-        ws = null;
-        setTimeout(1000);
-        init_webskt();
-    }
-    //web socket连接失败时触发
-    ws.onerror = function (evt){
-    }
+//     //连接web socket成功触发
+//     ws.onopen = function (evt){
+//     }
+//     //断开web socket成功触发
+//     ws.onclose = function (evt){
+//         ws = null;
+//         setTimeout(1000);
+//         init_webskt();
+//     }
+//     //web socket连接失败时触发
+//     ws.onerror = function (evt){
+//     }
 
-    //当窗口关闭时，关闭websocket。防止server端异常
-    ws.onbeforeunload = function (evt){
-        ws.close();
-    }
+//     //当窗口关闭时，关闭websocket。防止server端异常
+//     ws.onbeforeunload = function (evt){
+//         ws.close();
+//     }
 
-    //接收web socket服务端数据时触发
-    ws.onmessage = function (evt) {
-        //alert(evt.data)
-        data = JSON.parse(evt.data);
-        if (data.cmd == 'openfile')
-            add_tab(data.file, data.txt);
-        else if (data.cmd == 'settheme')
-            set_theme(data.theme, data.fontsize);
-        else if (data.cmd == 'savefile_req')
-            save_file(data.file, false);
-        // else if (data.cmd == 'clipboard_rsp')
-        //     do_paste(data.txt);
-    };
-}
+//     //接收web socket服务端数据时触发
+//     ws.onmessage = function (evt) {
+//         //alert(evt.data)
+//         data = JSON.parse(evt.data);
+//         if (data.cmd == 'openfile')
+//             add_tab(data.file, data.txt);
+//         else if (data.cmd == 'settheme')
+//             set_theme(data.theme, data.fontsize);
+//         else if (data.cmd == 'savefile_req')
+//             save_file(data.file, false);
+//         // else if (data.cmd == 'clipboard_rsp')
+//         //     do_paste(data.txt);
+//     };
+// }
 
-//发送文本到websocket服务端
-function senddata(data) {
-    if (ws == null)
-        return;
-    json_str = JSON.stringify(data);
-    ws.send(json_str);
-    // alert(json_str)
-}
+// //发送文本到websocket服务端
+// function senddata(data) {
+//     if (ws == null)
+//         return;
+//     json_str = JSON.stringify(data);
+//     ws.send(json_str);
+//     // alert(json_str)
+// }
+
 
 
 
@@ -459,7 +461,7 @@ function add_contextmenu() {
 
     var paste = g_editor.createContextKey('paste', false);
     g_editor.addAction({            
-        id: 'paste_model',  label: '粘贴',  contextMenuGroupId: '9_cutcopypaste',
+        id: 'paste_model',  label: '粘贴　　　　　 　　　Ctrl+V',  contextMenuGroupId: '9_cutcopypaste',
         keybindings: [  ],
         keybindingContext: null,  contextMenuOrder: 8,  precondition: paste.set(true),
         run: function(ed){ do_key_event(); }
@@ -531,7 +533,7 @@ function get_uggestions(curr_line) {
         var word = items[1].toLowerCase();
         if (word == 'ta')
             word = 'talib';
-            
+        
         ret = function_info[word];
         if (!ret)
             ret = function_info['sub'];
